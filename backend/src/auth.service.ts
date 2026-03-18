@@ -1,11 +1,9 @@
 import { Injectable } from '@nestjs/common';
+import { JwtService } from '@nestjs/jwt';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import * as bcrypt from 'bcrypt';
-import * as jwt from 'jsonwebtoken';
 import { User } from './entities/user.entity';
-
-const JWT_SECRET = 'supersecret'; // TODO: move to env
 
 const SALT_ROUNDS = 10;
 
@@ -14,6 +12,7 @@ export class AuthService {
   constructor(
     @InjectRepository(User)
     private userRepository: Repository<User>,
+    private jwtService: JwtService,
   ) {}
 
   async register(username: string, password: string): Promise<any> {
@@ -21,7 +20,7 @@ export class AuthService {
     const hashed = await bcrypt.hash(password, SALT_ROUNDS);
     const user = this.userRepository.create({ username, password: hashed });
     const saved = await this.userRepository.save(user);
-    const token = jwt.sign({ userId: saved.id, username }, JWT_SECRET, { expiresIn: '24h' });
+    const token = this.jwtService.sign({ userId: saved.id, username }, { expiresIn: '24h' });
     return { token, userId: saved.id };
   }
 
@@ -31,20 +30,22 @@ export class AuthService {
       return null;
     }
     console.log('User logged in:', username);
-    const token = jwt.sign({ userId: user.id, username }, JWT_SECRET, { expiresIn: '24h' });
+    const token = this.jwtService.sign({ userId: user.id, username }, { expiresIn: '24h' });
     return { token, userId: user.id };
   }
 
-  // async refreshToken(token: string) {
-  //   // TODO: implement refresh tokens
-  //   return null;
-  // }
-
-  verifyToken(token: string): any {
+  verifyToken(token: string): { userId: number; username: string } | null {
     try {
-      return jwt.verify(token, JWT_SECRET);
+      return this.jwtService.verify(token);
     } catch {
       return null;
     }
+  }
+
+  /** Returns users without sensitive fields (no password). */
+  getPublicUsers(): Promise<Pick<User, 'id' | 'username' | 'createdAt'>[]> {
+    return this.userRepository.find({
+      select: ['id', 'username', 'createdAt'],
+    });
   }
 }

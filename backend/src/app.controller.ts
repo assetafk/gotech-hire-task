@@ -1,13 +1,9 @@
-import { Controller, Get, Post, Body, Param } from '@nestjs/common';
+import { Controller, Get, Post, Body } from '@nestjs/common';
 import { AuthService } from './auth.service';
-import { ChatService } from './chat.service';
 
 @Controller()
 export class AppController {
-  constructor(
-    private authService: AuthService,
-    private chatService: ChatService,
-  ) {}
+  constructor(private authService: AuthService) {}
 
   @Post('auth/register')
   async register(@Body() body: any) {
@@ -34,7 +30,6 @@ export class AppController {
 
   @Get('users')
   async getUsers() {
-    // returns password hashes - major security issue
-    return this.chatService['userRepository'].find();
+    return this.authService.getPublicUsers();
   }
 }

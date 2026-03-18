@@ -1,30 +1,22 @@
-import { Controller, Get, Post, Body, Param, Headers } from '@nestjs/common';
+import { Controller, Get, Post, Body, Param, Req, UseGuards } from '@nestjs/common';
 import { ChatService } from './chat.service';
-import * as jwt from 'jsonwebtoken';
+import { JwtAuthGuard } from './auth/jwt-auth.guard';
 
 @Controller('chat')
 export class ChatController {
   constructor(private chatService: ChatService) {}
 
-  // No @UseGuards(JwtAuthGuard) - all routes unprotected
   @Get('rooms')
   async getRooms() {
     return this.chatService.getRooms();
   }
 
   @Post('rooms')
-  async createRoom(@Body() body: any, @Headers('authorization') auth: string) {
-    // manual JWT parsing with hardcoded secret (second occurrence)
-    let userId = 1; // magic default
-    if (auth) {
-      try {
-        const token = auth.replace('Bearer ', '');
-        const decoded: any = jwt.verify(token, 'supersecret');
-        userId = decoded.userId;
-      } catch {
-        // silently ignores invalid tokens
-      }
-    }
+  @UseGuards(JwtAuthGuard)
+  async createRoom(
+    @Body() body: { name: string; description?: string },
+    @Req() req: { user: { userId: number; username: string } },
+  ) {
     return this.chatService.createRoom(body.name, body.description);
   }
 
